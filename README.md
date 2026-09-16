@@ -1,6 +1,6 @@
 # Flappy QA Bench — Test Automation & Telemetry Lab
 
-[![QA Automation](https://github.com/<your-user>/flappy-qa-bench/actions/workflows/pytest.yml/badge.svg)](https://github.com/markoj612/flappy-qa-bench/actions/workflows/pytest.yml)
+[![QA Automation](https://github.com/markoj612/flappy-qa-bench/actions/workflows/pytest.yml/badge.svg)](https://github.com/markoj612/flappy-qa-bench/actions/workflows/pytest.yml)
 
 An interactive portfolio project that treats a Flappy Bird clone as a **system under test**. Three software builds of the same game ship side by side; one of them contains a deliberate collision regression. A build-agnostic QA layer — independent test oracle, live assertion monitor, headless assertion suite and a Jira-style bug generator — catches the regression in real time, and a Python + Playwright suite (Page Object Model) verifies the whole thing in CI.
 
