@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Bird QA Test Suite & Game</title>
+  <style>
+    body { font-family: monospace; display: flex; gap: 20px; background: #1a1a1a; color: #fff; padding: 20px; }
+    canvas { border: 2px solid #fff; background: #70c5ce; }
+    .qa-panel { background: #2a2a2a; padding: 15px; border-radius: 8px; width: 320px; }
+    .status-pass { color: #4caf50; font-weight: bold; }
+    .status-fail { color: #f44336; font-weight: bold; }
+    .badge { padding: 3px 8px; border-radius: 4px; font-size: 12px; background: #444; }
+    button { width: 100%; margin-top: 10px; padding: 8px; cursor: pointer; background: #00bcd4; border: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <canvas id="gameCanvas" width="320" height="480"></canvas>
+
+  <div class="qa-panel">
+    <h3>🔍 QA Real-time Telemetry</h3>
+    <p>Game State: <span id="stateBadge" class="badge">READY</span></p>
+    <p>Bird Y-Pos: <span id="yPos">0</span> px</p>
+    <p>Last Collision: <span id="collisionType">None</span></p>
+
+    <hr>
+    <h4>Automated Asserts Status</h4>
+    <p>1. Ground Crash Assertion: <span id="assertGround" class="status-fail">[FAIL]</span></p>
+    <p>2. Score Counter Assertion: <span id="assertScore" class="status-fail">[FAIL]</span></p>
+
+    <button onclick="runBot()">🤖 Toggle Auto-Play Bot</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let state = 'READY';
+    let bird = { x: 50, y: 150, gravity: 0.25, jump: -4.6, velocity: 0 };
+    let score = 0;
+    let botActive = false;
+
+    function reset() {
+      bird.y = 150; bird.velocity = 0; score = 0; state = 'READY';
+      document.getElementById('stateBadge').innerText = state;
+    }
+
+    function loop() {
+      // Physics
+      if (state === 'PLAYING') {
+        bird.velocity += bird.gravity;
+        bird.y += bird.velocity;
+
+        // Auto Bot Logic
+        if (botActive && bird.y > 250) bird.velocity = bird.jump;
+
+        // Check Ground Collision
+        if (bird.y + 12 >= canvas.height) {
+          state = 'GAME_OVER';
+          document.getElementById('stateBadge').innerText = 'GAME_OVER';
+          document.getElementById('collisionType').innerText = 'GROUND';
+          document.getElementById('assertGround').className = 'status-pass';
+          document.getElementById('assertGround').innerText = '[PASS]';
+        }
+      }
+
+      // Draw
+      ctx.fillStyle = '#70c5ce'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(bird.x, bird.y, 12, 0, Math.PI*2); ctx.fill();
+
+      document.getElementById('yPos').innerText = Math.round(bird.y);
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space') {
+        if (state === 'READY') state = 'PLAYING';
+        bird.velocity = bird.jump;
+        document.getElementById('stateBadge').innerText = state;
+      }
+    });
+
+    function runBot() { botActive = !botActive; if(state==='READY') state='PLAYING'; }
+    loop();
+  </script>
+</body>
+</html>
