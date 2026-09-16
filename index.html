@@ -2,86 +2,182 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Flappy Bird QA Test Suite & Game</title>
-  <style>
-    body { font-family: monospace; display: flex; gap: 20px; background: #1a1a1a; color: #fff; padding: 20px; }
-    canvas { border: 2px solid #fff; background: #70c5ce; }
-    .qa-panel { background: #2a2a2a; padding: 15px; border-radius: 8px; width: 320px; }
-    .status-pass { color: #4caf50; font-weight: bold; }
-    .status-fail { color: #f44336; font-weight: bold; }
-    .badge { padding: 3px 8px; border-radius: 4px; font-size: 12px; background: #444; }
-    button { width: 100%; margin-top: 10px; padding: 8px; cursor: pointer; background: #00bcd4; border: none; font-weight: bold; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Flappy Bird QA Test Automation & Telemetry Bench — real-time game telemetry, debug hitboxes, automated assertions and dynamic Jira bug reports across software builds.">
+  <title>Flappy QA Bench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-  <canvas id="gameCanvas" width="320" height="480"></canvas>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">◈</span>
+      <div>
+        <h1>Flappy QA Bench</h1>
+        <p class="brand-sub">Test Automation &amp; Telemetry · Build Regression Lab</p>
+      </div>
+    </div>
 
-  <div class="qa-panel">
-    <h3>🔍 QA Real-time Telemetry</h3>
-    <p>Game State: <span id="stateBadge" class="badge">READY</span></p>
-    <p>Bird Y-Pos: <span id="yPos">0</span> px</p>
-    <p>Last Collision: <span id="collisionType">None</span></p>
+    <nav class="build-switcher" id="buildSwitcher" role="tablist" aria-label="Game build selector">
+      <button class="build-btn" data-build="v1.0.0" role="tab" aria-selected="true" data-tone="stable">
+        <span class="build-ver">v1.0.0</span><span class="build-tag">Legacy Stable</span>
+      </button>
+      <button class="build-btn" data-build="v1.1.0" role="tab" aria-selected="false" data-tone="regression">
+        <span class="build-ver">v1.1.0</span><span class="build-tag">Regression Bug</span>
+      </button>
+      <button class="build-btn" data-build="v1.2.0" role="tab" aria-selected="false" data-tone="hotfix">
+        <span class="build-ver">v1.2.0</span><span class="build-tag">Hotfix · Prod Ready</span>
+      </button>
+    </nav>
+  </header>
 
-    <hr>
-    <h4>Automated Asserts Status</h4>
-    <p>1. Ground Crash Assertion: <span id="assertGround" class="status-fail">[FAIL]</span></p>
-    <p>2. Score Counter Assertion: <span id="assertScore" class="status-fail">[FAIL]</span></p>
+  <main class="layout">
 
-    <button onclick="runBot()">🤖 Toggle Auto-Play Bot</button>
-  </div>
+    <!-- ============ GAME COLUMN ============ -->
+    <section class="game-col" aria-label="Game under test">
+      <div class="canvas-wrap glass">
+        <div class="canvas-hud">
+          <span class="chip chip-build" id="activeBuild" data-tone="stable">v1.0.0</span>
+          <span class="chip" id="stateBadge" data-state="READY">READY</span>
+        </div>
+        <canvas id="gameCanvas" width="360" height="540" aria-label="Flappy Bird game canvas" tabindex="0"></canvas>
+      </div>
 
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    
-    let state = 'READY';
-    let bird = { x: 50, y: 150, gravity: 0.25, jump: -4.6, velocity: 0 };
-    let score = 0;
-    let botActive = false;
+      <div class="controls">
+        <button id="btnStart" class="btn btn-primary">▶ Start</button>
+        <button id="btnHitbox" class="btn" aria-pressed="false">⬚ Toggle Collision Hitboxes</button>
+        <button id="btnBot" class="btn" aria-pressed="false">🤖 Toggle Auto-Play Bot</button>
+        <button id="btnRunSuite" class="btn btn-accent">⚡ Run Assertion Suite</button>
+      </div>
 
-    function reset() {
-      bird.y = 150; bird.velocity = 0; score = 0; state = 'READY';
-      document.getElementById('stateBadge').innerText = state;
-    }
+      <div class="build-note glass" id="buildNote">
+        <div class="build-note-head">
+          <span class="label">CHANGELOG</span>
+          <span class="mono" id="buildAlgo">aabb</span>
+        </div>
+        <p id="buildChangelog">—</p>
+      </div>
+    </section>
 
-    function loop() {
-      // Physics
-      if (state === 'PLAYING') {
-        bird.velocity += bird.gravity;
-        bird.y += bird.velocity;
+    <!-- ============ QA DASHBOARD COLUMN ============ -->
+    <aside class="dash-col glass" aria-label="QA dashboard">
 
-        // Auto Bot Logic
-        if (botActive && bird.y > 250) bird.velocity = bird.jump;
+      <nav class="tabs" role="tablist" aria-label="Dashboard sections">
+        <button class="tab-btn is-active" data-tab="telemetry" role="tab" aria-selected="true">📊 Telemetry</button>
+        <button class="tab-btn" data-tab="assertions" role="tab" aria-selected="false">✅ Assertions <span class="tab-count" id="assertCount">0/4</span></button>
+        <button class="tab-btn" data-tab="bugs" role="tab" aria-selected="false">🐛 Jira Bugs <span class="tab-count tab-count-bug" id="bugCount">0</span></button>
+      </nav>
 
-        // Check Ground Collision
-        if (bird.y + 12 >= canvas.height) {
-          state = 'GAME_OVER';
-          document.getElementById('stateBadge').innerText = 'GAME_OVER';
-          document.getElementById('collisionType').innerText = 'GROUND';
-          document.getElementById('assertGround').className = 'status-pass';
-          document.getElementById('assertGround').innerText = '[PASS]';
-        }
-      }
+      <!-- Telemetry -->
+      <section class="panel is-active" data-panel="telemetry" role="tabpanel">
+        <header class="panel-head">
+          <h2>Real-time Telemetry</h2>
+          <span class="live-dot" id="liveDot" title="Frame loop active"></span>
+        </header>
 
-      // Draw
-      ctx.fillStyle = '#70c5ce'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(bird.x, bird.y, 12, 0, Math.PI*2); ctx.fill();
+        <div class="tele-grid">
+          <div class="tile"><span class="tile-label">Bird X</span><span class="tile-val mono" id="birdX">0.0</span></div>
+          <div class="tile"><span class="tile-label">Bird Y</span><span class="tile-val mono" id="birdY">0.0</span></div>
+          <div class="tile"><span class="tile-label">Y-Velocity</span><span class="tile-val mono" id="birdVy">0.00</span></div>
+          <div class="tile"><span class="tile-label">Dist → Next Pipe</span><span class="tile-val mono" id="distNext">—</span></div>
+          <div class="tile"><span class="tile-label">Score</span><span class="tile-val mono" id="score">0</span></div>
+          <div class="tile"><span class="tile-label">Frame</span><span class="tile-val mono" id="frame">0</span></div>
+          <div class="tile"><span class="tile-label">FPS</span><span class="tile-val mono" id="fps">0</span></div>
+          <div class="tile"><span class="tile-label">Last Collision</span><span class="tile-val mono" id="collisionType">NONE</span></div>
+        </div>
 
-      document.getElementById('yPos').innerText = Math.round(bird.y);
-      requestAnimationFrame(loop);
-    }
+        <div class="kv-row">
+          <span class="kv"><span class="label">Oracle overlap</span> <span class="mono" id="oracleOverlap">none</span></span>
+          <span class="kv"><span class="label">Bot</span> <span class="mono" id="botStatus">OFF</span></span>
+          <span class="kv"><span class="label">Hitboxes</span> <span class="mono" id="hitboxStatus">OFF</span></span>
+          <span class="kv"><span class="label">Seed</span> <span class="mono" id="seed">1337</span></span>
+        </div>
 
-    window.addEventListener('keydown', e => {
-      if (e.code === 'Space') {
-        if (state === 'READY') state = 'PLAYING';
-        bird.velocity = bird.jump;
-        document.getElementById('stateBadge').innerText = state;
-      }
-    });
+        <h3 class="sub-head">Event Log</h3>
+        <ol class="event-log mono" id="eventLog" aria-live="polite"></ol>
+      </section>
 
-    function runBot() { botActive = !botActive; if(state==='READY') state='PLAYING'; }
-    loop();
-  </script>
+      <!-- Assertions -->
+      <section class="panel" data-panel="assertions" role="tabpanel">
+        <header class="panel-head">
+          <h2>Automated Assertion Suite</h2>
+          <span class="mono muted" id="suiteSummary">not run</span>
+        </header>
+        <ul class="assert-list" id="assertList">
+          <li class="assert-item" data-assert="ceiling" data-status="PENDING">
+            <div class="assert-main">
+              <span class="assert-name">Assert Ceiling Boundary</span>
+              <span class="badge" id="assert-ceiling">[PENDING]</span>
+            </div>
+            <p class="assert-detail mono" data-detail="ceiling">Not yet exercised</p>
+          </li>
+          <li class="assert-item" data-assert="ground" data-status="PENDING">
+            <div class="assert-main">
+              <span class="assert-name">Assert Ground Collision</span>
+              <span class="badge" id="assert-ground">[PENDING]</span>
+            </div>
+            <p class="assert-detail mono" data-detail="ground">Not yet exercised</p>
+          </li>
+          <li class="assert-item" data-assert="pipe" data-status="PENDING">
+            <div class="assert-main">
+              <span class="assert-name">Assert Pipe Obstacle Collision</span>
+              <span class="badge" id="assert-pipe">[PENDING]</span>
+            </div>
+            <p class="assert-detail mono" data-detail="pipe">Not yet exercised</p>
+          </li>
+          <li class="assert-item" data-assert="score" data-status="PENDING">
+            <div class="assert-main">
+              <span class="assert-name">Assert Score Increment Logic</span>
+              <span class="badge" id="assert-score">[PENDING]</span>
+            </div>
+            <p class="assert-detail mono" data-detail="score">Not yet exercised</p>
+          </li>
+        </ul>
+        <p class="hint">Headless run arranges deterministic scenarios against the selected build. Live monitor grades every frame while you (or the bot) play — an independent oracle decides what <em>should</em> have happened.</p>
+      </section>
+
+      <!-- Bugs -->
+      <section class="panel" data-panel="bugs" role="tabpanel">
+        <header class="panel-head">
+          <h2>Jira Bug Reports</h2>
+          <div class="panel-actions">
+            <button id="btnExportBugs" class="btn btn-xs">⤓ Export JSON</button>
+            <button id="btnClearBugs" class="btn btn-xs">Clear</button>
+          </div>
+        </header>
+        <div id="bugList" class="bug-list" aria-live="polite">
+          <div class="empty" id="bugEmpty">
+            <span class="empty-icon">✓</span>
+            <p>No defects filed. Switch to <strong>Build v1.1.0</strong> and fly into a pipe to watch the reporter generate a ticket.</p>
+          </div>
+        </div>
+      </section>
+
+    </aside>
+  </main>
+
+  <footer class="foot">
+    <span class="mono">window.QA test hooks exposed · Playwright POM suite in <code>/tests</code></span>
+    <span class="mono">Space / Click / Tap = flap · H = hitboxes · B = bot · R = run suite</span>
+  </footer>
+
+  <!-- System under test -->
+  <script src="js/config.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/bot.js"></script>
+  <script src="js/renderer.js"></script>
+  <!-- QA layer -->
+  <script src="js/qa/oracle.js"></script>
+  <script src="js/qa/assertions.js"></script>
+  <script src="js/qa/bugReporter.js"></script>
+  <!-- App -->
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/qa/testHooks.js"></script>
 </body>
 </html>
